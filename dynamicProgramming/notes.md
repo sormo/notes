@@ -2165,4 +2165,383 @@ The best way is to split it into [7,2,5] and [10,8], where the largest sum among
     }
 ```
 
+# Combinatorics and Dynamic Programming
 
+## Tiling Problem I
+
+Given a `2 x n` board and tiles of size `2 x 1`, count the number of ways to tile the given board using tiles. A tile can be placed horizontally or vertically.
+
+### Example
+
+```
+Board with single column, there is only one way, place single tile vertically:
+a
+a
+```
+```
+Board with two columns, there are two way, place two tiles vertically or horizontally:
+ab   aa
+ab , bb
+```
+```
+Board with three columns, there are three ways:
+abc   abb   aac
+abc , acc , bbc
+```
+
+### Solution
+
+We should use dynamic programming __fill single column and count number of ways of tiling the rest of the board__.
+
+For example wa have board of length 8:
+
+```
+xxxxxxxx
+xxxxxxxx
+```
+
+How many ways we can fill first column ? There are two ways:
+```
+axxxxxxx , aaxxxxxx
+axxxxxxx , bbxxxxxx
+```
+
+The second way will fill also the second column but as long as the first column is filled we are ok.
+
+From that the recursive relation is clear:
+
+> f(n) = f(n - 1) + f(n - 2)
+
+(each time we will recurse on the rest of the board `x`s)
+
+## Tiling Problem II
+
+Same as the `Tiling Problem I` only that we have one more tile available. That is `2 x 2`
+
+So we have:
+
+```
+aa , a , aa
+     a   aa
+```
+
+How will the recursive relation change? Just think about how to fill the single column. So there is one more way and that is placing single `2 x 2` tile. This means we need to recurse on `f(n - 2)` one more time:
+
+> f(n) = f(n - 1) + f(n - 2) + f(n - 2)
+
+## Tiling Problem III
+
+Same as the `Tiling Problem I` only that we have one more tile available - a L-shape tile:
+
+```
+aa , a  
+     aa
+```
+
+(the tiles can be rotated in any way, not drawing all the possibilities)
+
+### Solution
+
+Always think about filling left most column. As previous we can fill in two ways first column using `aa` tile (see `Tiling Problem I`)
+
+> f(n) = f(n - 1) + f(n - 2) + 
+
+If we use the L-shape we get to situation where column is only partially filled:
+
+```
+axxxxxxx  or  aaxxxxxx
+aaxxxxxx      axxxxxxx
+```
+
+We will introduce two new functions:
+
+> g(n) -> represents the number of ways to fill 2 x n board with one additional tile in top-left
+> h(n) -> represents the number of ways to fill 2 x n board with one additional tile in bottom-left
+
+```
+axxxxxxxxx  or  aaxxxxxxxx
+aaxxxxxxxx      axxxxxxxxx
+  <- n  ->        <-  n ->
+g(n)            h(n)
+```
+
+> Column of the extra tile is not included in n !
+
+So the whole recursive relation is
+
+> f(n) = f(n - 1) + f(n - 2) + g(n) + h(n)
+
+Now one simplification is that (it's only flipped but the number of ways is the same)
+
+> g(n) = h(n)
+
+In this situation
+
+```
+xxxxxxxxx
+ xxxxxxxx
+ <- n  ->
+```
+
+What is the number of ways to fill left-most column ?
+
+```
+aaxxxxxxx or aaxxxxxxx
+ xxxxxxxx     axxxxxxx
+ <- n  ->     <- n  ->
+```
+
+> h(n) = g(n - 1) + f(n - 1)
+
+or
+
+> g(n) = h(n - 1) + f(n - 1)
+
+The base-cases are:
+```
+f(1) = 1, f(2) = 2
+g(1) = 1, g(2) = 2
+```
+
+```c++
+int solve(int n)
+{
+    std::vector<int> f(n + 1), g(n + 1);
+    f[1] = g[1] = 1;
+    f[2] = g[2] = 2;
+
+    for (int i = 3; i <= n; i++)
+    {
+        f[i] = f[i - 1] + f[i - 2] + 2 * g[i - 2];
+        g[i] = g[i - 1] + f[i - 1];
+    }
+
+    return f[n];
+}
+```
+
+## M3TILE Spoj
+
+Count number of ways we can tile the 3xn board with 2x1 dominoes. This is the same problem already solved in *Tri Tiling*
+
+We have 3xn board:
+```
+xxxxxxx
+xxxxxxx
+xxxxxxx
+```
+
+and  we are placing 2x1 dominoes rotated horizontally or vertically:
+```
+aaxxxxx
+bxxxxxx
+bccxxxx
+```
+
+### Solution
+
+We need to always think about filling in the left-most column. We have following possibilities:
+
+```
+axxxxxx    aaxxxxx    aaxxxxx
+axxxxxx ,  bxxxxxx ,  bbxxxxx
+bbxxxxx    bxxxxxx    ccxxxxx
+```
+
+> f(n) = g(n-2) + h(n-2) + f(n-2)
+
+where
+
+> g(n) -> represents the number of ways to fill 3 x n board with two additional tiles in top-left
+> h(n) -> represents the number of ways to fill 3 x n board with two additional tiles in bottom-left
+
+One thing to note is that again two additional tiles does not count to n:
+
+```
+axxxxxx
+axxxxxx
+bbxxxxx
+  <-n->
+```
+
+Now we define `g(n)`, we have two possibilities:
+
+```
+xxxxxx      axxxxx    bbxxxx
+xxxxxx  ->  axxxxx ,  ccxxxx
+ xxxxx       xxxxx     xxxxx
+ <-n->
+```
+
+g(n) = f(n) + i(n - 1)
+
+where
+
+> i(n) -> represents the number of ways to fill 3 x n board with one additional tile in bottom-left
+
+Now we define `i(n)`, we have only one possibility:
+
+```
+ xxxxx      xxxxx
+ xxxxx ->   xxxxx
+xxxxxx     aaxxxx
+ <-n->
+```
+
+> i(n) = g(n-1)
+
+Thus we can eliminate state `i` from `g`:
+
+> g(n) = f(n) + g(n - 2)
+
+Another observation is that states `g(n)` and `h(n)` are same regarding the count of ways (only mirrored) so
+
+> f(n) = 2 * g(n - 2) + f(n - 2)
+
+Here is code:
+```c++
+int solve(int n)
+{
+    std::vector<int> f(n + 1), g(n + 1);
+    f[0] = g[0] = 1;
+    f[1] = g[1] = 0;
+
+    for (int i = 2; i <= n; i++)
+    {
+        f[i] = f[i - 2] + 2 * g[i - 2];
+        g[i] = g[i - 2] + f[i];
+    }
+
+    return f[n];
+}
+```
+
+The real tricky part are base cases. For state `g(0)` we have 1 way which makes sense, we place one tile filling it. Not sure why for `f(0)` we have one way. For `f(1)` and `g(1)` makes sense there are no way how to fill it in, because can't fill single 3x1 column with 2x1 domino (even if there are two extra spaces for g-case).
+
+## Number of ways n can be written as sum
+
+Number of ways `n` can be written as sum of {1,2,3}
+
+### Solution
+
+1 can be written as:
+
+> 1 =  { 1 }
+
+2 can be written as:
+
+> 2 = { 1 + 1, 2}
+
+3 can be written as:
+
+> 3 = { 1 + 1 + 1, 2 + 1, 1 + 2, 3 }
+
+Now how can we write 4 ?
+
+* we can take all the ways we write 3 and add 1 to it
+> 4 = {1 + 1 + 1 `+1`, 2 + 1 `+1`, 1 + 2 `+1`, 3 `+1` }
+* we can take all the ways to write 2 and add 2 to it
+> 4 = { 1 + 1 `+2`, 2 `+2`}
+* we can take all the ways to write 1 and add 3 to it
+> 4 =  { 1 `+3` }
+
+Thus the recurrence relation is:
+
+> f(n) = f(n-1) + f(n-2) + f(n-3)
+
+with base cases:
+
+f(1) = 1, f(2) = 2, f(3) = 3
+
+## Binomial coefficient
+
+`c(n,k)` used to denote the number of ways to choose `k` elements out of `n` (also called n choose k)
+
+Also it represents coefficient `x^k` in the expansion of `(1+x)^n`
+
+For example we have 4 elements and choosing 2:  
+
+```
+(1 + x)^4 = x^4 + 4x^3 + 6x^2 + 4x + 1
+```
+
+Coefficient of `x^2` is `6` which means we have 6 number of ways to choose 2 elements out of 4.
+
+Coefficients also forms pascal's triangle:
+
+```
+               1
+              1 1
+             1 2  1
+           1  3  3  1
+         1   4  6  4  1
+       1   5  10 10  5  1
+     1   6  15 20 15  6   1
+```
+
+For example on 5th row we can see numbers `{1,4,6,4,1}` which are coefficients of `(1+x)^4` from above.
+
+There are a lot of patterns in Pascal's triangle. 
+
+### Sum of two numbers above gives number below
+
+For example for row numbers `1 3 3 1` we will sum all the consecutive pairs (but we need to imagine 0 on left and right ?). We will get `0+1 1+3 3+3 3+1 1+0 = 1 4 6 4 1`
+
+### Row series
+
+__First row__ are all ones `{1,1,1,1,1,1}`
+
+__Second row__ are counting numbers `{1,2,3,4,5,6}`
+
+__Third row__ are triangular numbers `{1,3,6,10,15}`. If you check the difference between consecutive elements they are `{2,3,4,5}` which are counting numbers.
+
+__Fourth row__ are `{1,4,10,20}`. If you again check the difference it is `{3,6,10}` which seems to be triangular numbers.
+
+### Counting number squared
+
+If you pick counting number, it's square is equal to sum of neighbor to right and right-down. For example
+
+```
+   5  10
+    15
+```
+
+`5^2 = 10 + 15` 
+
+### Sums of rows
+
+Sums of rows are `1 2 4 8 16 32 64` which is `2^n`
+
+### 11th row power
+
+11 raised to the power of row number gives coefficients.
+
+```
+11^0 = 1
+11^1 = 11
+11^2 = 121
+11^3 = 1331
+11^4 = 14641
+11^5 = 161051
+11^6 = 1771561
+```
+
+5th and 6th power does not match because we have numbers with two digits in triangle. If we write the coefficients from triangle from right like this and sum we get the 11the power (numbers overlap):
+
+```
+  1051
+ 10
+15
+------
+161051
+```
+
+## Solution
+
+Solution is simple. If we are picking the `k` elements out of `n` for each element we just decide whether it will be included or not. This will lead to following recursive relation:
+
+```
+c(n,k) = c(n-1,k-1) + c(n-1,k)
+```
+
+First case if if we have included the element (pick `k-1` from the remaining ones) and second if we skip current element. The base case should be if `n` is same as `k` return 1 (we must pick all the elements).
