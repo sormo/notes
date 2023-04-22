@@ -2536,7 +2536,7 @@ Sums of rows are `1 2 4 8 16 32 64` which is `2^n`
 161051
 ```
 
-## Solution
+### Solution
 
 Solution is simple. If we are picking the `k` elements out of `n` for each element we just decide whether it will be included or not. This will lead to following recursive relation:
 
@@ -2545,3 +2545,693 @@ c(n,k) = c(n-1,k-1) + c(n-1,k)
 ```
 
 First case if if we have included the element (pick `k-1` from the remaining ones) and second if we skip current element. The base case should be if `n` is same as `k` return 1 (we must pick all the elements).
+
+## Friends Pairing Problem
+
+Given `n` friends, each one can be paired or stay single. Each friend can be paired once. Find out total number of ways in which friends can remain single or be paired up.
+
+### Example
+
+If we have 3 friends `(1,2,3)` possible solutions are:
+* 1,2,3 - all remain single
+* 12,3
+* 1,23
+* 2,13
+
+### Recursive Relation
+
+If we have `n` friends we can define recursive relation as follows. We will consider the right-most friend `n`th:
+
+> `f(n)` tells us number of ways in which `n` friends can pair up or remain single
+
+```
+f(n) = f(n-1) +
+```
+
+`f(n-1)` counts the number of ways if `n`th friend remains single. In that case `n-1` friends can pair up anyway they want.
+
+Now the `n`th friend can pair with `n-2` friend. If that is the case in how many ways the rest can pair ? In `f(n-2)` ways:
+
+```
+f(n) = f(n-1) + f(n-2) +
+```
+
+But the `n`th friend can decide to pair up with `n-3` friend. In that case the rest can again pair in `f(n-2)` ways:
+
+```
+f(n) = f(n-1) + f(n-2) + f(n-2)
+```
+
+Overall the `n`th friend can pair with any of `n-1` remaining friends so:
+
+```
+f(n) = f(n-1) + (n-1) * f(n-2)
+```
+
+## Partition N Into Positive Integers
+
+Count number of ways we can partition number N into positive integers
+
+### Example - order matters
+
+*1* : 
+```
+1
+```
+
+*2* :
+``` 
+1 + 1
+
+2
+```
+
+*3* :
+```
+1 + 1 + 1
+1 + 2
+
+2 + 1
+
+3
+```
+
+*4* :
+```
+1 + 1 + 1 + 1
+1 + 1 + 2
+1 + 2 + 1
+1 + 3
+
+2 + 1 + 1
+2 + 2
+
+3 + 1
+
+4
+```
+
+### Recursive Relation - order matters
+
+If you take a look at the example, you can find out that we always take previous partition and add `1 +` in front of it. Then we take the partition one more above and add `2 +` in front of it.
+
+So the recursive relation will be, take all partitions above + partitions one more above and `+1` at the end for the number itself:
+
+```
+f(n) = f(n-1) + f(n-2) + ... + f(n-n)
+```
+
+and base case for `n=0` will be 1.
+
+### Implementation - order matters
+
+__Top-down approach in O(n^2) (no memoization)__
+
+```c++
+int solve(int n)
+{
+    if (n == 0)
+        return 1;
+
+    int ans = 0;
+    for (int i = 1; i <= n; i++)
+        ans += solve(n - i);
+
+    return ans;
+}
+```
+
+__Bottom-up approach in O(n)__
+
+`f(n)` is sum of previous states, for example
+```
+f(5) = f(4) + f(3) + f(2) + f(1) + 1
+```
+the `+1` at the end is the number itself , in the example partition `5`.
+
+We will be calculating result from right to left. We will define variable `sum` which will represent the __previous sum__. 
+
+```c++
+int solve(int n)
+{
+    int sum = 0;
+    int dp[n + 1];
+
+    for (int i = 1; i <= n; i++)
+    {
+        dp[i] = sum + 1;
+        sum += dp[i];
+    }
+
+    return dp[n];
+}
+```
+
+Here is how values will be set for different `i`s:
+```
+|i           | 1 | 2 | 3 | 4  | 5  |
+|------------|---|---|---|----|----|
+|sum - begin | 0 | 1 | 3 | 7  | 15 |
+|dp          | 1 | 2 | 4 | 8  | 16 |
+|sum - end   | 1 | 3 | 7 | 15 | 31 |
+```
+
+We can see that `dp` is just power of two :)
+
+__Mathematical formula in O(1)__
+
+```c++
+return pow(2, n - 1)
+```
+
+### Example - order doesn't matter
+
+From the previous example for number `4` we have following partionions
+```
+1 + 1 + 1 + 1
+1 + 1 + 2
+remove 1 + 2 + 1
+1 + 3
+remove 2 + 1 + 1
+2 + 2
+remove 3 + 1
+4
+```
+
+We have removed all the partitions that are not in `increasing` order (we may have also choose decreasing or something else).
+
+### Recursive Relation - order doesn't matter
+
+In a recursion we will remember the minimum number we can use for partitioning.
+
+```
+dp(min, n) -> number of ways to partition n such that minimum element is min
+```
+
+```
+dp(min, n) = for i=min to n : dp(i, n - i)
+```
+
+### Implementation - order doesn't matter
+
+```c++
+int solve(int min, int n)
+{
+    if (n == 0)
+        return 1;
+
+    int ans = 0;
+    for (int i = min; i <= n; i++)
+        ans += solve(i, n - i);
+
+    return ans;
+}
+
+solve(1, i);
+```
+
+We will start with minimum of `1` so first we will recurse like this (`i` is always `1` in all for loops) finding the partition of all `1`s
+
+```
+1+1+1+1+1
+```
+
+Then we will in the last for loop increment `min` to `2` finding the partition
+
+```
+1+1+1+1+2
+```
+
+and so on. The trick is that the partition will be always in increasing order.
+
+This implementation is in O(n^3)
+
+Resulting series is not computable in O(1) (according to `oeis`)
+
+### Recursive Relation 2 - order doesn't matter
+
+In a recursion we will remember the minimum number we can use for partitioning. So the state is the same but `min` will in this case represent the least min that can be used (so we can use min+1, min+2, ...)
+
+```
+dp(min, n) -> number of ways to partition n such that minimum element is at least min
+```
+
+```
+dp(min, n) = dp(min, n-min) + dp(min + 1, n)
+```
+
+There are two recursion cases:
+* `dp(min, n-min)` - in this case we will use `min` to partition n
+* `dp(min + 1, n)` - in this case we will discard `min` and move on using larger `min` with the same `n`
+
+### Implementation 2 - order doesn't matter
+
+Top-down in O(n^2)
+```c++
+int solve(int min, int n)
+{
+        if (n == 0) return 1;
+        if (min > n) return 0;
+        if (min == n) return 1;
+
+    int ans = solve(min, n - min) + solve(min + 1, n);
+
+    return ans;
+}
+```
+
+Bottom-up in O(n^2)
+
+|   | | 0 | 1 | 2 | 3 | 4 | 5 | 6  |
+|---|-|---|---|---|---|---|---|----|
+| 0 | | 1 |   |   |   |   |   |    |
+| 1 | | 1 | 1 | 2 | 3 | 5 | 7 | 11 |
+| 2 | | 1 | 0 | 1 | 1 | 2 | 2 | 4  |
+| 3 | | 1 | 0 | 0 | 1 | 1 | 1 | 2  |
+| 4 | | 1 | 0 | 0 | 0 | 1 | 1 | 1  |
+| 5 | | 1 | 0 | 0 | 0 | 0 | 1 | 1  |
+| 6 | | 1 | 0 | 0 | 0 | 0 | 0 | 1  |
+
+the relation is `dp(i,j) = dp(i, j-i) + dp(i+1,j)`
+
+* row is `i`
+* col is `j`
+
+That means we need value to the left and one down. For example cell `[2,4]`:
+
+|   | | 0 | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|-|---|---|---|---|---|---|---|
+| 0 | |   |   |   |   |   |   |   |
+| 1 | |   |   |   |   |   |   |   |
+| 2 | |   |   | x |   | O |   |   |
+| 3 | |   |   |   |   | x |   |   |
+| 4 | |   |   |   |   |   |   |   |
+| 5 | |   |   |   |   |   |   |   |
+| 6 | |   |   |   |   |   |   |   |
+
+So we need to fill in the table from bottom up and from left to right.
+
+The base cases are like this:
+
+```c++
+    if (j == 0) return 1;
+    if (i > j) return 0;
+    if (i == j) return 1;
+```
+
+So we will prefill the table
+
+|   | | 0 | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|-|---|---|---|---|---|---|---|
+| 0 | | 1 |   |   |   |   |   |   |
+| 1 | | 1 |   |   |   |   |   |   |
+| 2 | | 1 |   |   |   |   |   |   |
+| 3 | | 1 |   |   |   |   |   |   |
+| 4 | | 1 |   |   |   |   |   |   |
+| 5 | | 1 |   |   |   |   |   |   |
+| 6 | | 1 | 0 | 0 | 0 | 0 | 0 | 1 |
+
+From now on we can start filling in. One optimization is, we can use only single row and to each cell add `dp(i, j-1)` (because the term `dp(i+1,j)` will already be there).
+
+```c++
+int solve3(int n)
+{
+    std::vector<int> dp(n + 1, 0);
+    dp[0] = 1;
+
+    for (int i = 1; i <= n; i++)
+    {
+        for (int j = i; j <= n; j++)
+            dp[j] += dp[j - i];
+    }
+
+    return dp[n];
+}
+```
+
+TODO this is slightly different implementation than explained. Tried to implement it differently but doesn't work.
+
+# Subsequences
+
+## Longest Increasing Subsequence
+
+Find the longest increasing subsequence in a sequence of numbers. Subsequence does not have to be continuous.
+
+### Example
+
+```
+7 49 23 8 30 22 44 28 23 9 40 15
+```
+
+There are multiple subsequences of length 5. One of them is:
+
+```
+7 49 23 8 30 22 44 28 23 9 40 15
+x       x    x        x    x
+```
+
+### Solution
+
+```
+f(n) - longest increasing subsequence including only first n numbers
+```
+
+We will maintain dp state which will contain longest subsequence which ends on that number
+
+For example above we will create dp:
+
+```
+7 49 23 8 30 22 44 28 23 9 40 15
+0 0  0  0 0  0  0  0  0  0 0  0
+```
+
+We will start filling in dp from left to right.
+
+Sequence that ends on `7` has only `7` so the longest is one:
+
+```
+7 49 23 8 30 22 44 28 23 9 40 15
+1 0  0  0 0  0  0  0  0  0 0  0
+```
+
+Sequence that ends on `49` can contain also `7` so the length is 2:
+
+```
+7 49 23 8 30 22 44 28 23 9 40 15
+1 2  0  0 0  0  0  0  0  0 0  0
+```
+
+Sequence that ends on `23` can contain `7` but can't contain `49` so the length is again 2:
+
+```
+7 49 23 8 30 22 44 28 23 9 40 15
+1 2  2  0 0  0  0  0  0  0 0  0
+```
+
+Sequence that ends on `8` can contain only `7`:
+
+```
+7 49 23 8 30 22 44 28 23 9 40 15
+1 2  2  2 0  0  0  0  0  0 0  0
+```
+
+Sequence that ends on `30` can contain `23` so the length is 3:
+
+```
+7 49 23 8 30 22 44 28 23 9 40 15
+1 2  2  2 3  0  0  0  0  0 0  0
+```
+
+And so on:
+
+```
+7 49 23 8 30 22 44 28 23 9 40 15
+1 2  2  2 3  3  4  4  4  3 5  4
+```
+
+```c++
+int solve(const std::vector<int>& data)
+{
+    std::vector<int> dp(data.size(), 0);
+
+    for (int i = 0; i < data.size(); i++)
+    {
+        int ans = 1;
+        for (int j = 0; j < i; j++)
+        {
+            if (data[j] <= data[i])
+                ans = std::max(ans, dp[j] + 1);
+        }
+        dp[i] = ans;
+    }
+
+    return std::max_element(std::begin(dp), std::end(dp));
+}
+```
+
+## Good Sequences
+
+> [CodeForces](https://codeforces.com/problemset/problem/264/B)
+
+```
+Squirrel Liss is interested in sequences. She also has preferences of integers. She thinks n integers a1, a2, ..., an are good.
+
+Now she is interested in good sequences. A sequence x1, x2, ..., xk is called good if it satisfies the following three conditions:
+
+    The sequence is strictly increasing, i.e. xi < xi + 1 for each i (1 ≤ i ≤ k - 1).
+    No two adjacent elements are coprime, i.e. gcd(xi, xi + 1) > 1 for each i (1 ≤ i ≤ k - 1) (where gcd(p, q) denotes the greatest common divisor of the integers p and q).
+    All elements of the sequence are good integers. 
+
+Find the length of the longest good sequence.
+```
+
+### Example
+
+```
+2 3 4 6 9
+```
+
+From the example above, we can create longest good sequence with size 4: `2 4 6 9` because it's increasing and all two adjacent integers has gcd > 1 (`gcd(2,4) == 2`, `gcd(4,6) = 2`, `gcd(6,9) = 3`)
+
+### Solution
+
+Naive solution in `O(n^2)`
+
+```c++
+int32_t solve(std::vector<int32_t>& array)
+{
+    std::vector<int32_t> dp(array.size(), 1);
+    for (int32_t i = 1; i < dp.size(); i++)
+    {
+        for (int32_t j = i - 1; j >= 0; j--)
+        {
+            if (gcd(array[i], array[j]) > 1)
+                dp[i] = std::max(dp[i], dp[j] + 1);
+        }
+    }
+
+    return *std::max_element(std::begin(dp), std::end(dp));
+}
+```
+
+A note, gcd can be get like this:
+```c++
+int32_t gcd(int32_t a, int32_t b)
+{
+    if (a == b)
+        return a;
+    if (a > b)
+        return gcd(a - b, b);
+    else
+        return gcd(a, b - a);
+}
+```
+
+---
+
+But there is also better solution using prime numbers as follows:
+
+We will allocate `dp` array for longest length ending in that number but also the `prime` array.
+
+`prime` array will be an array which will represent longest subsequence when number has particular prime in it's prime factors
+
+Here is an example with prime factors written below:
+```
+2 3 4 6 9
+2 3 2 2 3
+      3
+```
+
+Now we will maintain `dp` and `prime` arrays.
+
+```
+    2 3 4 6 9
+    2 3 2 2 3
+          3
+dp: 0 0 0 0 0
+       2 3
+prime: 0 0
+```
+
+When considering the first number `2` at index 0. We will check what's the longest sequence which can any number with prime `2` provide? It's 0 so we will pick 0 + 1 to `dp` and update also prime array:
+
+```
+    2 3 4 6 9
+    2 3 2 2 3
+          3
+dp: 1 0 0 0 0
+       2 3
+prime: 1 0
+```
+
+Same way we will continue with `3`:
+
+```
+    2 3 4 6 9
+    2 3 2 2 3
+          3
+dp: 1 1 0 0 0
+       2 3
+prime: 1 1
+```
+
+Now number `4` has prime `2`, we will check the `prime` array and we can see that longest sequence for any number with prime `2` is 1. So we will update here with 1 + 1 both `dp` and `prime`
+
+```
+    2 3 4 6 9
+    2 3 2 2 3
+          3
+dp: 1 1 2 0 0
+       2 3
+prime: 2 1
+```
+
+Now the tricky part. Number `6` has two factors `2` and `3`. We will check the `prime` array for the longest sequences we can get. It's `2` and `1` so we will pick 2 + 1 here.
+> But the thing is even though we have used prime `2` we should update also prime `3`, because any later number with prime `3` can use this `6` in it's longest good sequence.
+
+```
+    2 3 4 6 9
+    2 3 2 2 3
+          3
+dp: 1 1 2 3 0
+       2 3
+prime: 3 3
+```
+
+And `9` will use previous number `6` using the prime `3`
+
+```
+    2 3 4 6 9
+    2 3 2 2 3
+          3
+dp: 1 1 2 3 4
+       2 3
+prime: 3 4
+```
+
+```c++
+int32_t solve(std::vector<int32_t>& array)
+{
+    std::vector<int32_t> dp_prime(array.size(), 0);
+
+    for (int32_t i = 0; i < array.size(); i++)
+    {
+        auto primes = prime_factors(array[i]);
+
+        // iterate over prime numbers of number in array and find the best ending in dp_prime
+        int32_t best = 0;
+        for (auto x : primes)
+            best = std::max(best, dp_prime[x]);
+
+        // update the dp_prime with best value for all primes
+        for (auto x : primes)
+            dp_prime[x] = best + 1;
+    }
+
+    return *std::max_element(std::begin(dp_prime), std::end(dp_prime));
+}
+```
+
+We don't use the `dp` array mentioned above, it's not needed.
+
+A note, here is how to get prime factors in `O(sqrt(n))`
+
+```c++
+std::vector<int32_t> prime_factors(int32_t n)
+{
+    std::vector<int32_t> result;
+
+    for (int32_t i = 2; i * i <= n; i++)
+    {
+        if (n % i == 0)
+        {
+            result.push_back(i);
+            while (n % i == 0)
+                n /= i;
+        }
+    }
+
+    if (n > 1)
+        result.push_back(n);
+
+    return result;
+}
+```
+
+## Consecutive Subsequence
+
+> [CodeForces](https://codeforces.com/problemset/problem/977/F)
+
+```
+You are given an integer array of length n.
+
+You have to choose some subsequence of this array of maximum length such that this subsequence forms a increasing sequence of consecutive integers. In other words the required sequence should be equal to [x,x+1,…,x+k−1]
+for some value x and length k.
+
+Print the length of the result and indices that forms the resulting subsequence.
+```
+
+### Example
+
+```
+7
+3 3 4 7 5 6 8
+```
+
+Result:
+```
+4
+2 3 5 6 
+```
+
+We can pick subsequence with length `4` with indices `2,3,5,6` which forms subsequence `3,4,5,6` (one-based indexing).
+
+### Solution
+
+There are two parts. First the dp to get the lenght and dp array and then printing the actual indices. When you think about it, dp is very simple. We just iterate from left to right and for each number checking the number one smaller and using it to dp like this:
+
+```
+f(x) = f(x-1) + 1
+```
+
+```c++
+using map = std::map<int32_t, int32_t>;
+
+void solve(std::vector<int32_t>& array)
+{
+    map dp;
+    // indexing to array for non-existing element will return default initialized int to 0
+    for (auto n : array)
+        dp[n] = dp[n - 1] + 1;
+```
+
+(we use map here because the numbers in array can be up to 1e9)
+
+The index part can be as follows:
+```c++
+    // find the number with highest dp value (length)
+    int64_t max_n = 0, max_val = 0;
+    for (const auto& [n, val] : dp)
+    {
+        if (val > max_val)
+        {
+            max_val = val;
+            max_n = n;
+        }
+    }
+
+    std::cout << max_val << "\n";
+
+    std::vector<int64_t> subsequence_indices;
+    for (int i = array.size() - 1; i >= 0; --i)
+    {
+        if (array[i] == max_n)
+        {
+            subsequence_indices.push_back(i + 1);
+            --max_n;
+        }
+    }
+
+    for (auto it = std::rbegin(subsequence_indices); it != std::rend(subsequence_indices); it++)
+        std::cout << *it << " ";
+```
