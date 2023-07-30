@@ -3235,3 +3235,710 @@ The index part can be as follows:
     for (auto it = std::rbegin(subsequence_indices); it != std::rend(subsequence_indices); it++)
         std::cout << *it << " ";
 ```
+
+# Multi-Dimensional DP
+
+Multi-Dimensional DP means that state is made of multiple independent variables. For example if state is made of 3 variables:
+
+`f(x, y, z)` - this is 3D DP
+
+but all variables should be independent, i.e. there is no relation like this `x = f(y, z)`
+
+# Digit Dynamic Programming
+
+Problems in this section consists of printing all numbers within some range which satisfies some properties. We should be able to print all numbers __using recursion__ .
+
+## Print recursively numbers from 0 to 2437
+
+__2437__
+
+We need to print 4 digits. On first place we can put numbers from 0 to 2 including:
+```
+ _ _ _ _
+0-2
+```
+
+The second place depends on what we have chosen for the first place. For example if we have chosen for the first place number `1` second place can be any number from `0-9`:
+
+```
+ 1 _ _ _
+  0-9
+```
+
+But if on the first place is last number `2` we can choose for the second place only numbers from range `0-4` (because choosing anything higher than `4` will mean we will end up with number higher than `2437`):
+
+```
+ 2 _ _ _
+  0-4
+```
+
+This condition holds for all numbers, for the third place we are in the same situation like this:
+
+```
+ 2 4 _ _   or 2 0 _ _
+    0-3          0-9
+```
+
+From this we can form recursive algorithm that will print all the numbers:
+
+```c++
+void fun(const string& max_number, string answer, int index, bool last)
+{
+    if (index == max_number.size())
+    {
+        std::cout << answer << '\n';
+        return;
+    }
+
+    int till = last ? max_number[index] - '0' : 9;
+
+    for (int i = 0; i <= till; i++)
+        fun(max_number, answer + to_string(i), index + 1, last && i == till);
+}
+```
+
+In the algorithm `last` represents whether this is the last branch of previous for loop. One important thing, this function should be called initially with `last` set to `true`. The left most branch must be constrained with `till`.
+
+## Sum of Digits
+
+Calculate the sum of digits of numbers from `a` to `b`.
+
+### Example
+
+Sum of digits of numbers from `1` to `10`. In this range we have following numbers `1,2,3,4,5,6,7,8,9,10` and the sum of digits is `1+2+3+4+5+6+7+8+9+1+0` = `46`.
+
+```c++
+int dp(const std::string& max_number, int index, bool last, int sum)
+{
+    if (index == max_number.size())
+        return 1;
+
+    int till = last ? max_number[index] - '0' : 9;
+    int ans = 0;
+
+    for (int i = 0; i <= till; i++)
+        ans += dp(max_number, index + 1, last && i == till, sum + i);
+    
+    return ans;
+}
+```
+
+## Investigation
+
+Calculate number of digits `d` in some range from `a` to `b` which satisfies following conditions
+* `d` is divisible by `k`
+* sum of digits of `d` is divisible by `k`
+
+### Example
+
+3702 is divisible by 3
+(3+7+0+2) = 12 is divisible by 3
+
+### Solution
+
+We will be using recursion to iterate over all numbers. If we have function `f` which counts the numbers that satisfies conditions the result will be obtained by
+
+```
+answer = f(b) - f(a-1)
+```
+
+#### Divisibility check in recursion
+
+In order to check whether number `d` is divisible by `k` we utilize fact:
+
+> mod is distributed across addition and multiplication:
+
+```
+(a + b*c) % m = a % m + (b*c) % m
+```
+
+If we have some number for example `3245`, it can be written as `((3*10 + 2)*10 + 4)*10 + 5` then
+
+```
+3245 % m = [[([([3*10]%m + 2)*10]%m + 4)*10]%m + 5]%m
+```
+
+In other words, we can take `mod` operation in the process of the forming the number in recursion and come up with the result to `3245 % m`
+
+```c++
+int solve(const std::string& number, int mod, int index, bool last, int num_mod, int sum_digit_mod)
+{
+    if (index == number.size())
+    {
+        if (num_mod == 0 && sum_digit_mod == 0)
+            return 1; // we have found number that satisfies both properties
+        return 0;
+    }
+
+    int till = last ? number[index] - '0' : 9;
+    int ans = 0;
+
+    for (int i = 0; i <= till; i++)
+    {
+        ans += solve(number,
+                     index + 1,
+                     last && i == till,
+                     (num_mod*10 + i) % mod, // this is computation of mod of whole number
+                     (sum_digit_mod + i) % mod); // this is computation of mod of sum of digits
+    }
+
+    return ans;
+}
+```
+
+Solution above is only recursion without memoization. Now, how many different states can `solve` have ? First two parameters `number` and `mod` must be ignored as those does not change.
+* `index` is index to the number which according to description is up to 2^31 so index can go up to `10`
+* `last` has two different values
+* `num_mod` is only up to `mod` number
+* `sum_digit_mod` same as `num_mod` up to `mod`
+
+We can easily memoize the states of this function:
+
+```c++
+int memo[10][2][mod][mod]
+```
+
+and can solve numbers up to 10 digits.
+
+### Trick
+
+So the above memoization is not that great. If mod is 10^4 we have 10*2*10^4*10^4 = 2*10^9 which is two gigabytes. But let's think about it. 
+
+`sum_digit_mod` is modulo of the sum of the digits of the numbers. If we have numbers up to the 2^31 number can have up to 10 digits. If we have all the nines there:
+
+```
+9+9+9+9+9+9+9+9+9=9*10=90
+```
+
+So that means the sum can go only up to 90! (this is not factorial (: ) And modding 90 with any greater number will still result with 90. So the last state can be reduced to 90. Another observation is
+
+> if `mod` is greater than 90 can ever `sum_digit_mod` be 0 ?
+
+We will be increasing `sum_digit_mod` up to maximum value of 90 and modding it with for example 100. But the number mod greater number won't ever get chance to wrap around to 0. This means that calling `solve` if `mod` is greater than 90 (or maximum sum of digits) is waste of time. This means that if `solve` is called only with `mod` less or equal to 90 we will end up with following space requirement for memoization:
+
+```c++
+int memo[10][2][90][90]
+```
+
+## Magic numbers
+
+> [CodeForces](https://codeforces.com/problemset/problem/628/D)
+
+```
+Consider the decimal presentation of an integer. Let's call a number d-magic if digit d appears in decimal presentation of the number on even positions and nowhere else.
+
+For example, the numbers 1727374, 17, 1 are 7-magic but 77, 7, 123, 34, 71 are not 7-magic. On the other hand the number 7 is 0-magic, 123 is 2-magic, 34 is 4-magic and 71 is 1-magic.
+
+Find the number of d-magic numbers in the segment [a, b] that are multiple of m. Because the answer can be very huge you should only find its value modulo 10^9 + 7 (so you should find the remainder after dividing by 10^9 + 7).
+```
+
+```c++
+int m, d;
+int MOD = 1e9 + 7;
+
+int solve_rec(const std::string& number, int index, bool last, int num_mod)
+{
+    if (index == number.size())
+    {
+        if (num_mod == 0)
+            std::cout << test << "\n";
+
+        return num_mod == 0;
+    }
+
+    int till = last ? number[index] - '0' : 9;
+    uint32_t ans = 0;
+
+    if ((index + 1) % 2 == 0 && d <= till) // zero-based indexing
+    {
+        ans += solve_rec(number, index + 1, last && d == till, (num_mod * 10 + d) % m);
+        ans %= MOD;
+    }
+    else
+    {
+        for (int i = 0; i <= till; i++)
+        {
+            if (i == d)
+                continue;
+
+            ans += solve_rec(number, index + 1, last && i == till, (num_mod * 10 + i) % m);
+            ans %= MOD;
+        }
+    }
+
+    return ans;
+}
+
+int solve(const std::string& number)
+{
+    return solve_rec(number, 0, true, 0);
+}
+
+int main()
+{
+    std::string a, b;
+    std::cin >> m >> d >> a >> b;
+
+    // What we need is f(b) - f(a-1). In order to get a-1 we do following:
+    int i = a.size() - 1;
+    while (i >= 0 && a[i] == '0') {
+        a[i] = '9';
+        i--;
+    }
+    a[i] = a[i] - 1;
+
+    // Here we need to add MOD because of subtraction. Why?
+    std::cout << (solve(b) - solve(a) + MOD) % MOD;
+
+    return 0;
+}
+```
+
+# Dynamic Programming on Trees
+
+Tree is a datastructure with nodes and edges.
+
+> If tree has `n` nodes there is exactly `n-1` edges.
+> Tree is connected.
+> Degree of node is number of edges of that particular node.
+
+There is also another structure DAG (Directed Acyclic Graph) which is similar to tree but it does not adhere to property of `n-1` edges.
+
+Root of the tree usually doesn't matter (if not stated in the description). For example following are the same trees:
+
+```
+     1          2
+   / | \       / \
+  2  3  4     5   1
+  |  |  |        / \
+  5  6  7       3   4
+                |   |
+                6   7
+```
+
+Also naming of the vertices doesn't matter. We may the root of second tree above call 1 but the structure doesn't changes and that's what matter.
+
+If we call `dp(n)` we will call it on subtree from the node `n`. For example above the subtree of node `2` is either only node `5` or all other the nodes (second tree). So the subtree depends on the root node. But the overall solution (i.e. `dp(root)`) should not depend on what root we choose.
+
+## Vertex Cover
+
+You are given unweighted, undirected tree. Write a program to find a vertex set of *minimum* size in this tree such that each edge has at least one of it's end-points in that set.
+
+### Example
+
+```
+    1
+   / \
+  2   3
+```
+
+In the example above the answer is { 1 }. Other answers {2,3} or {1,3} has size of two.
+
+### Greedy approach
+
+One may be tempted to use greedy approach here. That is:
+
+Repeat until no edges:
+* pick the vertex with highest degree
+* eliminate covered edges
+* recompute degrees
+
+Here is counter example for which this approach will not work:
+
+```
+     1
+   / | \
+  2  3  4
+  |  |  |
+  5  6  7
+```
+
+Algorithm will pick 1 as it is only node with degree 3. After that all nodes will have degree of one so it doesn't matter which but it must pick three another so the resulting set will be for example {1,5,6,7} of size 4. But the optimal solution is {2,3,4}.
+
+### DP approach
+
+We will formulate recurrence relation as follows:
+
+> dp(n, 0) - number of nodes in vertex cover if current node *is not* included
+> dp(n, 1) - number of nodes in vertex cover if current node *is* included
+
+```
+dp(n, 0) = sum( dp(x, 1) )
+dp(n, 1) = 1 + sum( min( dp(x, 0), dp(x, 1) ) )
+```
+
+where `x` are children of node `n`
+
+This means:
+* if we don't include the current node (`dp(n, 0)`) we must include nodes of children (otherwise edges between current node and children won't be satisfied)
+* if we include the current node (`dp(n, 1)`) we pick the best out of including/not-including children. You may be tempted that in this case we should always not include the children, but we don't know and don't care at this point about the structure of the child. TODO example where it is optimal to pick both parent and child.
+
+```c++
+const int N = 1e5 + 1;
+
+vector<int> adjacency_lists[N];
+int memo[N][2];
+
+int dp(int node, bool take, int parent)
+{
+    if (memo[node][take] != -1)
+        return memo[node][take];
+
+    int ans = take; // this will initialize ans with either 0 or 1
+    for (auto child : adjacency_lists[node])
+    {
+        if (child == parent)
+            continue;
+        if (take)
+            ans += min(dp(x, false, node), dp(x, true, node));
+        else
+            ans += dp(x, true, node);
+    }
+    return memo[node][take] = ans;
+}
+
+int main()
+{
+    int n;
+    cin >> n;
+
+    for (int i = 0; i < n - 1; i++)
+    {
+        int x, y;
+        cin >> x >> y;
+        adjacency_lists[x].push_back(y);
+        adjacency_lists[y].push_back(x);
+    }
+
+    memset(memo, -1, sizeof(memo));
+    cout << min(dp(1, false, -1), dp(1, true, -1));
+
+    return 0;
+}
+```
+
+### DFS approach
+
+In the following code we will perform dfs on the tree, filling in `dp` array on the way back, result will be `min(dp[root][false], dp[root][true])`
+
+```c++
+void dfs(int node, int parent)
+{
+    dp[node][false] = 0;
+    dp[node][true] = 1;
+
+    for (auto child : adjacency_lists[node])
+    {
+        if (child == parent)
+            continue;
+
+        dfs(child, node);
+        // coming back from dfs, dp[x] wil be filled
+        dp[node][false] += dp[child][true];
+        dp[node][true] += min(dp[child][false], dp[child][true]);
+    }
+}
+```
+
+### BFS approach
+
+```c++
+    queue<int> Q;
+    int root = -1;
+
+    // start with the leaf nodes and move upwards to parents, this way we will have final values in dp
+    for (int i = 1; i <= n; i++)
+    {
+       if (adjacency_lists[i].size() == 1)
+            Q.push(i);
+    }
+
+    while (!Q.empty())
+    {
+        int node = Q.front();
+        Q.pop();
+
+        visited[node] = true;
+        root = node;
+
+        dp[node][false] = 0;
+        dp[node][true] = 1;
+
+        for (auto child : adjacency_lists[node])
+        {
+            if (visited[child])
+            {
+                // child node
+                dp[node][false] += dp[child][true];
+                dp[node][true] += min(dp[child][false], dp[child][true]);
+            }
+            else
+            {
+                // parent node
+                Q.push(child);
+            }
+        }
+    }
+    // the node which is visited in the end
+    cout << min(dp[root][false], dp[root][true]);
+```
+
+## Tree diameter
+
+`Tree diameter` is length of the longest path between any two nodes. Length of the path is given by number of edges that forms the path. Find tree diameter.
+
+### Greedy approach
+
+* perform DFS from any node and find the node `x` which is farthest (we need to traverse most edges to go from root to `x`)
+* perform DFS from node `x` and find the node `y` which is farthest
+
+Path between `x` and `y` is diameter of tree
+
+There is the notion of `farthest` node. If we form a tree by picking a root node, even if not specified in description, we can talk about farthest node from some node.
+
+### Recursive approach
+
+We will pick a root node and for each node find a distance to farthest node.
+
+Then for each node `n` we have two possibilities:
+* either longest path goes through the node `n`
+* or longest path does not go through node `n` and is contained within a subtree of node `n`
+
+Here we are considering the longest path that we can obtain by the nodes only within `n` and it's subtree. __This is actually recursive approach, forming longest path recursively by adding node by node__.
+
+To handle both cases we will do following:
+* get the longest path that goes through current node by : `(distance to farthest node + 1) + (distance to second to farthest node + 1)` (here is plus one because we add an edge when connecting the subtree to current node)
+* or use the longest distance from previous computations
+
+Here is DFS that will fill in table `g` which will contain the `farthest` nodes
+```c++
+void dfs(int cur, int par)
+{
+    for (auto x : gr[cur])
+    {
+        if (x != par)
+        {
+            dfs(x, cur);
+            g[cur] = max(g[x] + 1, g[cur]);
+        }
+    }
+}
+```
+
+And here is the rest. We will compute the table `f`. The root node in `f` will contain the final result. 
+```c++
+void dfs(int cur, int par)
+{
+    int max_1 = 0, max_2 = 0;
+
+    for (auto x : gr[cur])
+    {
+        if (x != par)
+        {
+            dfs(x, cur);
+
+            // fill in the longest path within subtrees of current node (path does not cross current node)
+            f[cur] = max(f[x], f[cur]);
+
+            // max 2 values of g[x]
+            if (g[x] + 1 > max_1)
+            {
+                max_2 = max_1;
+                max_1 = g[x] + 1;
+            }
+            else if (g[x] + 1 > max_2)
+            {
+                max_2 = g[x] + 1;
+            }
+        }
+    }
+
+    // in the end pick either path that goes through current node or is contained within children
+    f[cur] = max(f[cur], max_1 + max_2);
+}
+```
+
+The both steps can be done in single DFS.
+
+## Tree diameter I
+
+You are given a tree consisting of n nodes. Your task is to determine for each node the maximum distance (number of edges) to another node.
+
+### Example
+
+```
+    1
+   / \
+  2   3
+     / \
+    4   5
+
+Result:
+node: 1 2 3 4 5
+dist: 2 3 2 3 3
+```
+
+### Solution
+
+There is one problem. If we are computing max distance for example for node `3` we need to consider also it's parent distances. Here the max distance within subtree of `3` is 1 (to either `4` or `5`) then there is one edge to parent and there is max distance of 1 within subtrees of parent `1` (to `2`) excluding the `3` node.
+
+Let's add new variable to recursion `dis_par` which will represent max distance obtained from parent. It can be computed by taking `dis_par` we have so far in recursion and max it with distances from another subtrees (expect the child we plan to recurse on). This will form `new_dis_par` used in recursion.
+
+```c++
+// The `g` array is initialized to 0 initially. This function below will compute for each node distance to farthest node.
+void dfs_g(int cur, int par)
+{
+    for (auto x : gr[cur])
+    {
+        if (x != par)
+        {
+            dfs_g(x, cur);
+            g[cur] = max(g[cur], g[x] + 1);
+        }
+    }
+}
+
+void dfs_f(int cur, int par, int dis_par)
+{
+    for (auto x : gr[cur])
+    {
+        if (x != par)
+        {
+            // here we are creating new_dis_par by either taking dis_par from parent or any children expect current child x (and ofc parent), we will then add +1 because of edge to child
+            int new_dis_par = dis_par;
+            for (auto y : gr[cur])
+            {
+                if (y != par && y != x)
+                    new_dis_par = max(g[y], new_dis_par);
+            }
+
+            dfs_f(x, cur, new_dis_par + 1);
+
+            // so here the result is considering the child nodes
+            f[cur] = max(f[cur], g[x] + 1);
+        }
+    }
+
+    // for any node in the supertree
+    // supertree = compliment of subtree
+    f[cur] = max(f[cur], dis_par + 1);
+}
+```
+
+There are two nested for loops so the complexity is O(N^2) in worst case, but can be easily reduced to O(N) by finding two max values single time instead of iterating over all childs each time.
+
+```c++
+void dfs_f(int cur, int par, int dis_par)
+{
+    int max_1 = -1, max_2 = -1;
+
+    for (auto x : gr[cur])
+    {
+        if (x != par)
+        {
+            if (g[x] > max_1) max_2 = max_1, max_1 = g[x];
+            else if (g[x] > max_2) max_2 = g[x];
+        }
+    }
+
+    for (auto x : gr[cur])
+    {
+        if (x != par)
+        {
+            int new_dis_par = dis_par;
+
+            if (g[x] == max_1)
+                new_dis_par = max(new_dis_par, max_2);
+            else
+                new_dis_par = max(new_dis_par, max_1);
+```
+
+Here we will use either `max_2` if what we have is `max_1` otherwise we use `max_1` 
+
+## Tree diameter II
+
+You are given a tree consisting of n nodes. Your task is to determine for each node the sum of the distances to all other nodes.
+
+### Example
+
+```
+    1
+   / \
+  2   3
+     / \
+    4   5
+```
+
+Here for example for node `1` result is 6:
+
+```
+1-2 = 1
+1-3 = 1
+1-4 = 2
+1-5 = 2
+
+1 + 1 + 2 + 2 = 6
+```
+
+### Solution
+
+As an example above in order to compute sum of distances from parent node to all other nodes we need to first know number of nodes in each subtree:
+
+```c++
+void dfs_h(int cur, int par)
+{
+    for (auto x : gr[cur])
+    {
+        if (x != par)
+            h[cur] += h[x];
+    }
+    h[cur] += 1;
+}
+```
+
+Then we can compute the sum of distances from current node to it's subtree like this:
+
+```c++
+void dfs_g(int cur, int par)
+{
+    for (auto x : gr[cur])
+    {
+        if (x != par)
+        {
+            dfs_g(x, cur);
+            g[cur] += g[x] + h[x];
+        }
+    }
+}
+```
+
+For each node we will iterate over all children and add to overall sum the previously computed value of that child and number of children of that child.
+
+Now comes re-routing. We have distances from within subtree and now we need to add distances from parent.
+
+```c++
+void dfs_f(int cur, int par, int sum_par)
+{
+    // this variable represents number of nodes in tree except the subtree at cur (n is total number of nodes)
+    int num_par_nodes = n - h[cur];
+
+    for (auto x : gr[cur])
+    {
+        if (x == par)
+            continue;
+
+        // here we need to compute new_sum_par for child
+        int new_sum_par = sum_par + num_par_nodes;
+        int current_child_values = g[x] + h[x];
+        new_sum_par += (g[cur] - current_child_values);
+
+        dfs_f(x, cur, new_sum_par);
+
+        // here we add distances contained within the child
+        f[cur] += (g[x] + h[x]);
+    }
+
+    // here we add to the result sum of distances contained outside of subtree of the cur node
+    f[cur] += sum_par + num_par_nodes;
+}
+```
